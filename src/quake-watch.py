@@ -6,8 +6,12 @@ from asciimatics.screen import Screen
 from datetime import datetime
 from dateutil import tz
 
-mmi_threshold = -1
-update_freq   =  5 # minutes
+mmi_threshold   = -1
+display_n       = 20
+update_freq     =  5 # minutes
+decimal_prec    =  1
+highlight_depth = False
+highlight_loc   = ':^)'
 
 # Specify where each screen element should go
 ui = {
@@ -65,6 +69,9 @@ def getColor(value, type='magnitude'):
         return Screen.COLOUR_MAGENTA
 
     if type == 'depth':
+        if not highlight_depth:
+            return Screen.COLOUR_BLACK
+
         if value >= 200: return Screen.COLOUR_BLACK
         if value >= 100: return Screen.COLOUR_WHITE
         if value >= 50:  return Screen.COLOUR_BLUE
@@ -90,9 +97,9 @@ def printQuake(screen, quake, n):
     time_abs = str(time_formatted.replace(tzinfo=tz_from).astimezone(tz_to).ctime())
 
     locality  =           quake['properties']['locality']
-    magnitude = str(round(quake['properties']['magnitude'], 1))
+    magnitude = str(round(quake['properties']['magnitude'], decimal_prec))
     mmi       = str(      quake['properties']['mmi'])
-    depth     = str(round(quake['properties']['depth']))
+    depth     = str(round(quake['properties']['depth'], decimal_prec))
     quality   =           quake['properties']['quality']
 
     # Justify numbers to the right
@@ -101,12 +108,15 @@ def printQuake(screen, quake, n):
     depth     = ((10 - len(depth))     * ' ') + depth
 
     # Print the quality in red if the earthquake data has been tagged as deleted
+    locality_col  = Screen.COLOUR_YELLOW if highlight_loc in locality.lower() else Screen.COLOUR_WHITE
+    locality_bold = Screen.A_BOLD        if highlight_loc in locality.lower() else Screen.A_NORMAL
+
     quality_col  = Screen.COLOUR_RED if quality == 'deleted' else Screen.COLOUR_BLACK
     quality_bold = Screen.A_NORMAL   if quality == 'deleted' else Screen.A_BOLD # We don't want the red text to be too glaring
 
     screen.print_at(time_abs,       ui['time-abs'] ['x'], y, Screen.COLOUR_BLACK, Screen.A_BOLD)
     screen.print_at(time_humanized, ui['time-ago'] ['x'], y)
-    screen.print_at(locality,       ui['locality'] ['x'], y)
+    screen.print_at(locality,       ui['locality'] ['x'], y, locality_col, locality_bold)
     screen.print_at(magnitude,      ui['magnitude']['x'], y, getColor(quake['properties']['magnitude']),      Screen.A_BOLD)
     screen.print_at(mmi,            ui['mmi']      ['x'], y, getColor(quake['properties']['mmi']),            Screen.A_BOLD)
     screen.print_at(depth,          ui['depth']    ['x'], y, getColor(quake['properties']['depth'], 'depth'), Screen.A_BOLD)
@@ -127,6 +137,13 @@ def main(screen):
         # Display the header
         screen.print_at('Last update: ' + str(datetime.now().strftime('%H:%M:%S')), hx, hy, cb, ab)
 
+        # Display extra information if settings are not at their defaults
+        if update_freq != 5:
+            screen.print_at(str(update_freq) + 'm', hx + 22, hy, Screen.COLOUR_GREEN, ab)
+
+        if mmi_threshold != -1:
+            screen.print_at('MMI >= ' + str(mmi_threshold), hx + 27, hy, Screen.COLOUR_BLUE, ab)
+
         screen.print_at('-' * ui['screen']['w'],           hx, hy + 1, cb, ab)
         screen.print_at('Time occurred', ui['time-abs'] ['x'], hy + 2)
         screen.print_at('Time ago',      ui['time-ago'] ['x'], hy + 2)
@@ -143,7 +160,10 @@ def main(screen):
         n = 0
         for q_id in quakes_latest:
             printQuake(screen, quakes_latest[q_id], n)
+            
             n += 1
+            if n == display_n:
+                break
 
         screen.refresh()
         time.sleep(update_freq * 60)
@@ -152,9 +172,37 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mmi-threshold', type=int, help='The MMI value to query GeoNet with. Default is -1 (get all earthquakes)')
+
+    parser.add_argument('-m', '--mmi-threshold', type=int,\
+        help='The MMI value to query GeoNet with. Default is -1 (get all earthquakes)')
+
+    parser.add_argument('-n', '--display-n', type=int,\
+        help='How many earthquakes to display at a time. Default is 20.')
+
+    parser.add_argument('-u', '--update-frequency', type=int,\
+        help='How often to update the feed, in minutes. Default is 5 minutes.')
+
+    parser.add_argument('-d', '--decimal-precision', type=int,\
+        help='How many decimal places to show for magnitude and depth values. Default is 1, max is 6.')
+
+    parser.add_argument('-hd', '--highlight-depth', action='store_true',\
+        help='Turn on highlighting of depth values.')
+
+    parser.add_argument('-hl', '--highlight-locality', type=str,\
+        help='Specify a location to highlight if an earthquake occurs there.')
+
     args = parser.parse_args()
 
-    mmi_threshold = args.mmi_threshold if args.mmi_threshold else mmi_threshold
+    mmi_threshold   = args.mmi_threshold      if args.mmi_threshold      else mmi_threshold
+    display_n       = args.display_n          if args.display_n          else display_n
+    update_freq     = args.update_frequency   if args.update_frequency   else update_freq
+    decimal_prec    = args.decimal_precision  if args.decimal_precision  else decimal_prec
+    highlight_depth = args.highlight_depth    if args.highlight_depth    else highlight_depth
+    highlight_loc   = args.highlight_locality if args.highlight_locality else highlight_loc
+
+    if decimal_prec > 6:
+        decimal_prec = 6
+
+    highlight_loc = highlight_loc.lower()
 
     Screen.wrapper(main)
