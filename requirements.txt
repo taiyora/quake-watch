@@ -1,2 +1,4 @@
 requests==2.18.4
 asciimatics==1.8.0
+humanize==0.5.1
+python_dateutil==2.6.1
