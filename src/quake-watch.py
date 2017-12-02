@@ -6,7 +6,8 @@ from asciimatics.screen import Screen
 from datetime import datetime
 from dateutil import tz
 
-update_freq = 5 # minutes
+mmi_threshold = -1
+update_freq   =  5 # minutes
 
 # Specify where each screen element should go
 ui = {
@@ -18,11 +19,11 @@ ui = {
     'quake-list': { 'y':   5 },
     'time-abs'  : { 'x':   0 }, # Absolute time
     'time-ago'  : { 'x':  27 }, # Relative time
-    'locality'  : { 'x':  45 },
+    'locality'  : { 'x':  44 },
     'magnitude' : { 'x':  85 },
     'mmi'       : { 'x':  95 },
-    'depth'     : { 'x': 105 },
-    'quality'   : { 'x': 117 }
+    'depth'     : { 'x': 103 },
+    'quality'   : { 'x': 116 }
 }
 
 def printError(screen, message):
@@ -32,7 +33,7 @@ def getLatestQuakes(screen):
     """Retrieves the latest 100 earthquakes from the GeoNet API."""
 
     try:
-        quakes = requests.get('http://api.geonet.org.nz/quake?MMI=-1')
+        quakes = requests.get('http://api.geonet.org.nz/quake?MMI=' + str(mmi_threshold))
         quakes.raise_for_status()
 
     except requests.exceptions.HTTPError        as e: printError(screen, 'HTTP Error: '        + str(e))
@@ -52,6 +53,29 @@ def getLatestQuakes(screen):
 
     return {} # Return an empty dictionary if an error occurred, since the program will continue to run fine
 
+def getColor(value, type='magnitude'):
+    if type == 'magnitude':
+        if value < 3: return Screen.COLOUR_BLACK
+        if value < 4: return Screen.COLOUR_WHITE
+        if value < 5: return Screen.COLOUR_BLUE
+        if value < 6: return Screen.COLOUR_CYAN
+        if value < 7: return Screen.COLOUR_GREEN
+        if value < 8: return Screen.COLOUR_YELLOW
+        if value < 9: return Screen.COLOUR_RED
+        return Screen.COLOUR_MAGENTA
+
+    if type == 'depth':
+        if value >= 200: return Screen.COLOUR_BLACK
+        if value >= 100: return Screen.COLOUR_WHITE
+        if value >= 50:  return Screen.COLOUR_BLUE
+        if value >= 25:  return Screen.COLOUR_CYAN
+        if value >= 10:  return Screen.COLOUR_GREEN
+        if value >= 5:   return Screen.COLOUR_YELLOW
+        if value >= 3:   return Screen.COLOUR_RED
+        return Screen.COLOUR_MAGENTA
+
+    return Screen.COLOUR_WHITE
+
 def printQuake(screen, quake, n):
     y = ui['quake-list']['y'] + n
 
@@ -66,23 +90,27 @@ def printQuake(screen, quake, n):
     time_abs = str(time_formatted.replace(tzinfo=tz_from).astimezone(tz_to).ctime())
 
     locality  =           quake['properties']['locality']
-    magnitude = str(round(quake['properties']['magnitude'], 2))
+    magnitude = str(round(quake['properties']['magnitude'], 1))
     mmi       = str(      quake['properties']['mmi'])
-    depth     = str(round(quake['properties']['depth'],     2))
+    depth     = str(round(quake['properties']['depth']))
     quality   =           quake['properties']['quality']
 
     # Justify numbers to the right
-    magnitude = ((9 - len(magnitude)) * ' ') + magnitude
-    mmi       = ((5 - len(mmi))       * ' ') + mmi
-    depth     = ((9 - len(depth))     * ' ') + depth
+    magnitude = (( 9 - len(magnitude)) * ' ') + magnitude
+    mmi       = (( 5 - len(mmi))       * ' ') + mmi
+    depth     = ((10 - len(depth))     * ' ') + depth
+
+    # Print the quality in red if the earthquake data has been tagged as deleted
+    quality_col  = Screen.COLOUR_RED if quality == 'deleted' else Screen.COLOUR_BLACK
+    quality_bold = Screen.A_NORMAL   if quality == 'deleted' else Screen.A_BOLD # We don't want the red text to be too glaring
 
     screen.print_at(time_abs,       ui['time-abs'] ['x'], y, Screen.COLOUR_BLACK, Screen.A_BOLD)
     screen.print_at(time_humanized, ui['time-ago'] ['x'], y)
     screen.print_at(locality,       ui['locality'] ['x'], y)
-    screen.print_at(magnitude,      ui['magnitude']['x'], y)
-    screen.print_at(mmi,            ui['mmi']      ['x'], y)
-    screen.print_at(depth,          ui['depth']    ['x'], y)
-    screen.print_at(quality,        ui['quality']  ['x'], y, Screen.COLOUR_BLACK, Screen.A_BOLD)
+    screen.print_at(magnitude,      ui['magnitude']['x'], y, getColor(quake['properties']['magnitude']),      Screen.A_BOLD)
+    screen.print_at(mmi,            ui['mmi']      ['x'], y, getColor(quake['properties']['mmi']),            Screen.A_BOLD)
+    screen.print_at(depth,          ui['depth']    ['x'], y, getColor(quake['properties']['depth'], 'depth'), Screen.A_BOLD)
+    screen.print_at(quality,        ui['quality']  ['x'], y, quality_col, quality_bold)
 
 def main(screen):
     # Shorter variable names to make code cleaner
@@ -105,7 +133,7 @@ def main(screen):
         screen.print_at('Locality',      ui['locality'] ['x'], hy + 2)
         screen.print_at('Magnitude',     ui['magnitude']['x'], hy + 2)
         screen.print_at('| MMI',         ui['mmi']      ['x'], hy + 2)
-        screen.print_at('    Depth',     ui['depth']    ['x'], hy + 2)
+        screen.print_at('Depth (km)',    ui['depth']    ['x'], hy + 2)
         screen.print_at('Quality',       ui['quality']  ['x'], hy + 2)
         screen.print_at('-' * ui['screen']['w'],           hx, hy + 3, cb, ab)
 
@@ -121,4 +149,12 @@ def main(screen):
         time.sleep(update_freq * 60)
 
 if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--mmi-threshold', type=int, help='The MMI value to query GeoNet with. Default is -1 (get all earthquakes)')
+    args = parser.parse_args()
+
+    mmi_threshold = args.mmi_threshold if args.mmi_threshold else mmi_threshold
+
     Screen.wrapper(main)
