@@ -2,6 +2,7 @@ import json
 import requests
 import time
 from asciimatics.screen import Screen
+from datetime import datetime
 
 update_freq = 5 # minutes
 
@@ -9,9 +10,10 @@ update_freq = 5 # minutes
 ui = {
     'screen': { 'w': 200, 'h': 105 },
 
-    'error': { 'x': 0, 'y': 0 },
+    'error' : { 'x': 0, 'y': 0 },
+    'header': { 'x': 0, 'y': 1 },
 
-    'quake-list': { 'x':  0, 'y': 1 },
+    'quake-list': { 'y':  5 },
     'locality'  : { 'x':  0 },
     'magnitude' : { 'x': 40 }
 }
@@ -53,10 +55,24 @@ def printQuake(screen, quake, n):
     screen.print_at(magnitude, ui['magnitude']['x'], y)
 
 def main(screen):
+    # Shorter variable names to make code cleaner
+    hx = ui['header']['x']
+    hy = ui['header']['y']
+    cb = Screen.COLOUR_BLACK
+    ab = Screen.A_BOLD
+
     while True:
         # Clear the screen
         screen.move(0, 0)
         screen.draw(ui['screen']['w'], ui['screen']['h'], char=' ')
+
+        # Display the header
+        screen.print_at('Last update: ' + str(datetime.now().strftime('%H:%M:%S')), hx, hy, cb, ab)
+
+        screen.print_at('-' * ui['screen']['w'],       hx, hy + 1, cb, ab)
+        screen.print_at('Locality',  ui['locality'] ['x'], hy + 2)
+        screen.print_at('Magnitude', ui['magnitude']['x'], hy + 2)
+        screen.print_at('-' * ui['screen']['w'],       hx, hy + 3, cb, ab)
 
         # Display the latest earthquakes
         quakes_latest = getLatestQuakes(screen)
