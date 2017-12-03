@@ -30,6 +30,11 @@ ui = {
     'quality'   : { 'x': 116 }
 }
 
+def clearScreen(screen):
+    for y in range(0, ui['screen']['h']):
+        screen.move(0, y)
+        screen.draw(ui['screen']['w'], 1, char=' ')
+
 def printError(screen, message):
     screen.print_at(message, ui['error']['x'], ui['error']['y'], Screen.COLOUR_RED, Screen.A_BOLD)
 
@@ -130,9 +135,7 @@ def main(screen):
     ab = Screen.A_BOLD
 
     while True:
-        # Clear the screen
-        screen.move(0, 0)
-        screen.draw(ui['screen']['w'], ui['screen']['h'], char=' ')
+        clearScreen(screen)
 
         # Display the header
         screen.print_at('Last update: ' + str(datetime.now().strftime('%H:%M:%S')), hx, hy, cb, ab)
