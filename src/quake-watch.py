@@ -15,7 +15,7 @@ highlight_loc   = ':^)'
 
 # Specify where each screen element should go
 ui = {
-    'screen': { 'w': 200, 'h': 105 },
+    'screen': { 'w': 123, 'h': 105 },
 
     'error' : { 'x': 0, 'y': 0 },
     'header': { 'x': 0, 'y': 1 },
