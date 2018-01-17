@@ -33,7 +33,7 @@ ui = {
 def clearScreen(screen):
     for y in range(0, ui['screen']['h']):
         screen.move(0, y)
-        screen.draw(ui['screen']['w']+100, 1, char=' ') # The +100 is required to make the screen clear correctly for some reason
+        screen.draw(ui['screen']['w']+200, 1, char=' ') # The +200 is required to make the screen clear correctly for some reason
 
 def printError(screen, message):
     screen.print_at(message, ui['error']['x'], ui['error']['y'], Screen.COLOUR_RED, Screen.A_BOLD)
