@@ -2,8 +2,6 @@
 
 Uses the GeoNet API to get the latest earthquakes that have occurred in NZ, and displays them live in a pretty CLI window.
 
-![quake-watch](https://github.com/jl-eiki/quake-watch/blob/master/screenshots/2017-12-03b.png)
-
 ## Install
 
 ```pip install -r requirements.txt```
